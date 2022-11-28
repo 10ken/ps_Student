@@ -1,0 +1,45 @@
+---
+title: "Assignment 2"
+author: "Sri Sai Pujitha Nallapati"
+date: "27/11/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+1a)
+
+```{r}
+d <- read.csv(file = "C:/Users/Pujitha/OneDrive/University Courses/Fall 2022/STAC51/Assignment 2/STAC51_A2_Data/COVID19_cases_Toronto.csv")
+
+d$Ever.Hospitalized <- ifelse(d$Ever.Hospitalized == 'Yes', 1,0)
+d
+
+m = glm(Ever.Hospitalized~ Client.Gender+Age.Group, data = d, family = binomial)
+summary(m)
+
+```
+##Interpret all the regression parameters
+
+
+1b)
+```{r}
+##Interaction between age and gender
+
+mod2 = glm(Ever.Hospitalized ~ Age.Group + Client.Gender + Age.Group*Client.Gender, data = d, family = binomial)
+summary(mod2)
+
+```
+
+1c)
+
+
+
+1d)
+
+```{r}
+mod2$coefficients
+head(predict(mod2, type = "response"))
+```

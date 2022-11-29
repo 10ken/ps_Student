@@ -12,21 +12,24 @@ knitr::opts_chunk$set(echo = TRUE)
 1a)
 
 ```{r}
+#load data
 df <- read.csv(file = "COVID19_cases_Toronto.csv")
 
 df$Ever.Hospitalized <- ifelse(df$Ever.Hospitalized == 'Yes', 1,0)
 # 1 == hospitalized
 # 0 == not hospitalized
+```
 
-mod_log <- glm(Ever.Hospitalized ~ Client.Gender+Age.Group, data = df, family = binomial)
-summary(mod_log)
+```{r}
+mod1 <- glm(Ever.Hospitalized ~ Client.Gender+Age.Group, data = df, family = binomial)
+summary(mod1)
 
 ```
 ##Interpret all the regression parameters
 
 ```{r}
 # change the coefficients back into log ratios
-round(exp(mod_log$coefficients),2)
+round(exp(mod1$coefficients),2)
 ```
 ### Intercept
 When the patient is in the age group 19 and younger and is a female, then the odds of not being hospitalized is greater by 100 times. 
@@ -72,12 +75,120 @@ mod3 <- glm(Ever.Hospitalized ~ . + Age.Group * Client.Gender,
             data=df, family="binomial")
 summary(mod3)
 ```
+Do not keep neighborhood and outbreaks since there is not a large difference in AIC, deviance, and AUC values. Not include the two categorical variables will ensure a less complex model with approximately the same performance.
 
-
-### TOC Curve
+### 1f) ROC Curve
 ```{r}
 library(pROC)
+p = predict(mod2, type = "response")
+roc_logit = roc(df$Ever.Hospitalized~p) #AUC score
 
-roc_score=roc(df, mod2) #AUC score
-plot(roc_score ,main ="ROC curve -- Logistic Regression ")
+TPR = roc_logit$sensitivities
+
+FPR = 1 - roc_logit$specificities
+
+plot(FPR, TPR,
+     xlim=c(0,1), ylim=c(0,1),
+     type='l',lty=1, lwd=2,
+     col='red',bty='n')
+
+abline(a=0,b=1,lty=2,col='blue')
+text(0.7,0.4, label=paste("AUC = ", round(auc(roc_logit),2)))
+```
+
+
+### 1g)
+
+# TBD
+
+
+## Question 2
+
+### Part A
+
+```{r}
+# set parameters
+set.seed(123)
+n = nrow(df)
+indexes <- c(1:n)
+train_size = 0.60
+predictors <- c("Outbreak.Associated", "Age.Group",
+               "Neighbourhood.Name","Client.Gender") 
+target <- c( "Ever.Hospitalized" )
+
+# get sampled train and test indexes
+train_index <- sample(indexes, n * train_size)
+test_index <- indexes[ - train_index ]
+
+# get train and test df
+train_df <- df[train_index,]
+test_df <- df[test_index,]
+```
+
+### Part B
+```{r}
+library(boot)
+
+model_1 <- glm(Ever.Hospitalized ~ Age.Group + Client.Gender + Age.Group*Client.Gender, 
+               data=df, family='binomial')
+
+model_2 <- glm(Ever.Hospitalized ~ Age.Group + Client.Gender + Age.Group*Client.Gender + Neighbourhood.Name, 
+               data=df, family='binomial')
+```
+
+
+```{r}
+# ## Model calibration with cross-validation and bootstrap ##
+# library(rms)
+# 
+# ## Fit the model with lrm from rms package ##
+# lrm_1 <- lrm(Ever.Hospitalized ~ Age.Group + Client.Gender + Age.Group*Client.Gender, data=train_df,  x =TRUE, y = TRUE, model= T)
+# cross.calib <- calibrate(lrm_1, method="crossvalidation", B=10) # model calibration
+# 
+# par(family = 'serif')
+# plot(cross.calib, las=1, xlab = "Predicted Probability")
+
+```
+
+
+```{r}
+# ## Fit the model with lrm from rms package ##
+# lrm_2 <- lrm(Ever.Hospitalized ~ Age.Group + Client.Gender + Age.Group*Client.Gender + Neighbourhood.Name, data=train_df,  x =TRUE, y = TRUE, model= T)
+# 
+# cross.calib <- calibrate(lrm_2, method="crossvalidation", B=10) # model calibration
+
+```
+
+
+```{r}
+total_cv_errors <-function(data, model_name, k=10){
+  cv_errors = data.frame(delta1 = 0, delta2 = 0)
+  for (i in 1:k){
+  cv_errors[i, ] = cv.glm(data, model_name, K=k)$delta
+  print(i)
+}
+  return(cv_errors)}
+
+# http://www.science.smith.edu/~jcrouser/SDS293/labs/lab7-r.html
+```
+
+```{r}
+m1_train_cv_errors <- total_cv_errors(train_df, model_1)
+m1_test_cv_errors <- total_cv_errors(test_df, model_1)
+```
+
+```{r}
+print(m1_train_cv_errors)
+print(m1_test_cv_errors)
+```
+
+```{r}
+m2_train_cv_errors <- total_cv_errors(train_df, model_2)
+m2_test_cv_errors <- total_cv_errors(test_df, model_2)
+```
+
+
+```{r}
+print(m2_train_cv_errors)
+print(m2_test_cv_errors)
 ```

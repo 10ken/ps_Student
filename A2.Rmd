@@ -12,34 +12,72 @@ knitr::opts_chunk$set(echo = TRUE)
 1a)
 
 ```{r}
-d <- read.csv(file = "C:/Users/Pujitha/OneDrive/University Courses/Fall 2022/STAC51/Assignment 2/STAC51_A2_Data/COVID19_cases_Toronto.csv")
+df <- read.csv(file = "COVID19_cases_Toronto.csv")
 
-d$Ever.Hospitalized <- ifelse(d$Ever.Hospitalized == 'Yes', 1,0)
-d
+df$Ever.Hospitalized <- ifelse(df$Ever.Hospitalized == 'Yes', 1,0)
+# 1 == hospitalized
+# 0 == not hospitalized
 
-m = glm(Ever.Hospitalized~ Client.Gender+Age.Group, data = d, family = binomial)
-summary(m)
+mod_log <- glm(Ever.Hospitalized ~ Client.Gender+Age.Group, data = df, family = binomial)
+summary(mod_log)
 
 ```
 ##Interpret all the regression parameters
 
+```{r}
+# change the coefficients back into log ratios
+round(exp(mod_log$coefficients),2)
+```
+### Intercept
+When the patient is in the age group 19 and younger and is a female, then the odds of not being hospitalized is greater by 100 times. 
+
+### Client.GenderMale
+Males have a 52.5% more odds of be hospitalized than Females.
+
+### Age.Group20 to 29
+Patients that lie in this age group have a slightly higher odds of not being hospitalized since 0.98 < 1. The odds ratios is within 5%, we can say there is negligible association between the events of yes or no hospitalization in this age group.
+
+
+## To be completed....
 
 1b)
 ```{r}
 ##Interaction between age and gender
 
-mod2 = glm(Ever.Hospitalized ~ Age.Group + Client.Gender + Age.Group*Client.Gender, data = d, family = binomial)
+mod2 = glm(Ever.Hospitalized ~ Age.Group + Client.Gender + Age.Group*Client.Gender, 
+           data = df, family = binomial)
 summary(mod2)
 
 ```
+There are significant interactions between age and gender, therefore we will keep the interaction in the model. 
 
-1c)
+## 1c)
+```{r}
+round(exp(mod2$coefficients[18]),2)
+```
 
+When the patient is in the age group 90+ and is a male then the patient has a 92% more odds of being hospitalized.
 
 
 1d)
 
 ```{r}
-mod2$coefficients
-head(predict(mod2, type = "response"))
+odds_inter_age_gender <- mod2$coefficients[11:18]
+
+odds_inter_age_gender / (1 + odds_inter_age_gender)
+```
+## 1e)
+```{r}
+mod3 <- glm(Ever.Hospitalized ~ . + Age.Group * Client.Gender, 
+            data=df, family="binomial")
+summary(mod3)
+```
+
+
+### TOC Curve
+```{r}
+library(pROC)
+
+roc_score=roc(df, mod2) #AUC score
+plot(roc_score ,main ="ROC curve -- Logistic Regression ")
 ```
